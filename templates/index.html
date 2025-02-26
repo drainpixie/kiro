@@ -15,12 +15,12 @@
     <h1>kiro</h1>
     <p><i>&ldquo;a cute system monitor&rdquo;</i></p>
     <div id="system">
-      <h2>system</h2>
+      <h2 id="system__name">system</h2>
 
       <ol>
-        <li>cpu usage <span id="cpu-usage">00.00</span>%</li>
-        <li>used memory <span id="used-memory">000</span> MB</li>
-        <li>total memory <span id="total-memory">000</span> MB</li>
+        <li>cpu usage <span id="cpu__usage">00.00</span>%</li>
+        <li>used memory <span id="used__memory">000</span> MB</li>
+        <li>total memory <span id="total__memory">000</span> MB</li>
       </ol>
     </div>
   </body>
@@ -34,9 +34,11 @@
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
-      $("#cpu-usage").innerText = `${data.cpu_usage.toFixed(2)}`;
-      $("#total-memory").innerText = `${toMB(data.total_memory)}`;
-      $("#used-memory").innerText = `${toMB(data.used_memory)}`;
+      $("#system__name").innerText = `${data.system_name} [${data.ip}]`;
+
+      $("#cpu__usage").innerText = `${data.cpu_usage.toFixed(2)}`;
+      $("#used__memory").innerText = `${toMB(data.used_memory)}`;
+      $("#total__memory").innerText = `${toMB(data.total_memory)}`;
     };
   </script>
 </html>

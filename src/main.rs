@@ -4,10 +4,18 @@ use axum::{
     routing::get,
     serve, Router,
 };
-use std::time::Duration;
+use std::{io::Error, net::IpAddr, time::Duration};
 use sysinfo::System;
-use tokio::time::sleep;
+use tokio::{net::UdpSocket, time::sleep};
 use tower_http::services::ServeDir;
+
+async fn get_local_ip() -> Result<IpAddr, Error> {
+    let socket = UdpSocket::bind("0.0.0.0:0").await?;
+    socket.connect("8.8.8.8:80").await?;
+    let local_addr = socket.local_addr()?;
+
+    Ok(local_addr.ip())
+}
 
 async fn ws(ws: WebSocketUpgrade) -> impl IntoResponse {
     ws.on_upgrade(handle_socket)
@@ -19,10 +27,12 @@ async fn handle_socket(mut socket: WebSocket) {
     loop {
         sys.refresh_all();
         let update = format!(
-            r#"{{"cpu_usage": {:.2}, "total_memory": {}, "used_memory": {}}}"#,
+            r#"{{"cpu_usage": {:.2}, "total_memory": {}, "used_memory": {}, "system_name": "{}", "ip": "{}"}}"#,
             sys.global_cpu_usage(),
             sys.total_memory(),
-            sys.used_memory()
+            sys.used_memory(),
+            System::host_name().unwrap(),
+            get_local_ip().await.unwrap(),
         );
 
         if socket.send(Message::Text(update.into())).await.is_err() {
