@@ -402,6 +402,7 @@ dependencies = [
  "axum",
  "futures-util",
  "log",
+ "serde_json",
  "sysinfo",
  "tokio",
  "tower-http",
