@@ -40,6 +40,8 @@ async fn handle_socket(mut socket: WebSocket, addr: std::net::SocketAddr) {
 
     let mut sys = System::new_all();
     let host_name = System::host_name().unwrap_or_else(|| "unknown".to_string());
+    let os = System::long_os_version().unwrap_or_else(|| "unknown".to_string());
+    let kernel_version = System::kernel_version().unwrap_or_else(|| "unknown".to_string());
     let local_ip = match get_local_ip().await {
         Ok(ip) => ip.to_string(),
         Err(err) => {
@@ -56,11 +58,15 @@ async fn handle_socket(mut socket: WebSocket, addr: std::net::SocketAddr) {
         sys.refresh_memory();
 
         let update = serde_json::json!({
+            "os": os,
+            "local_ip": local_ip,
+            "host_name": host_name,
+            "kernel": kernel_version,
+            "uptime": System::uptime(), // loop because it's not "permanent"
+            "used_memory": sys.used_memory(),
+            "free_memory": sys.free_memory(),
             "cpu_usage": sys.global_cpu_usage(),
             "total_memory": sys.total_memory(),
-            "used_memory": sys.used_memory(),
-            "system_name": host_name,
-            "ip": local_ip
         });
 
         debug!("sending update to {}: {}", addr, update);
