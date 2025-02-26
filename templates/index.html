@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Kiro</title>
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>"
+    />
+
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <h1>kiro</h1>
+    <p><i>&ldquo;a cute system monitor&rdquo;</i></p>
+    <div id="system">
+      <h2>system</h2>
+
+      <ol>
+        <li>cpu usage <span id="cpu-usage">00.00</span>%</li>
+        <li>used memory <span id="used-memory">000</span> MB</li>
+        <li>total memory <span id="total-memory">000</span> MB</li>
+      </ol>
+    </div>
+  </body>
+
+  <script>
+    const $ = (query) => document.querySelector(query);
+    const toMB = (bytes) => Math.round(bytes / 1024 / 1024);
+
+    const socket = new WebSocket("ws://0.0.0.0:3000/ws");
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      $("#cpu-usage").innerText = `${data.cpu_usage.toFixed(2)}`;
+      $("#total-memory").innerText = `${toMB(data.total_memory)}`;
+      $("#used-memory").innerText = `${toMB(data.used_memory)}`;
+    };
+  </script>
+</html>
