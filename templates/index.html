@@ -12,19 +12,22 @@
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
-    <h1>kiro</h1>
-    <p><i>&ldquo;a cute system monitor&rdquo;</i></p>
+    <h1>Kiro</h1>
+    <p>&ldquo;A cute system monitor&rdquo;</p>
+
     <div id="system">
-      <h2 id="host__name">system [127.0.0.1:3000]</h2>
+      <h2 id="host__name">
+        System <span class="highlight">127.0.0.1:3000</span>
+      </h2>
 
       <ol>
         <li><span id="os">Ubuntu 20.04.2 LTS</span></li>
-        <li>kernel <span id="kernel">5.4.0-80-generic</span></li>
-        <li>uptime <span id="uptime">just now</span></li>
-        <li>cpu usage <span id="cpu__usage">00.00</span>%</li>
-        <li>free memory <span id="free__memory">000</span> MB</li>
-        <li>used memory <span id="used__memory">000</span> MB</li>
-        <li>total memory <span id="total__memory">000</span> MB</li>
+        <li>Kernel <span id="kernel">5.4.0-80-generic</span></li>
+        <li>Uptime <span id="uptime">just now</span></li>
+        <li>CPU Usage <span id="cpu__usage">00.00</span>%</li>
+        <li>Free Memory <span id="free__memory">000</span> MB</li>
+        <li>Used Memory <span id="used__memory">000</span> MB</li>
+        <li>Total Memory <span id="total__memory">000</span> MB</li>
       </ol>
     </div>
   </body>
@@ -32,6 +35,9 @@
   <script>
     const $ = (query) => document.querySelector(query);
     const toMB = (bytes) => Math.round(bytes / 1024 / 1024);
+    const toTitleCase = (str) =>
+      str.replace(/\b\w/g, (char) => char.toUpperCase());
+
     const toDuration = (ms) => {
       const units = [
         { label: "days", value: 24 * 60 * 60 * 1000 },
@@ -48,19 +54,22 @@
     };
 
     const socket = new WebSocket("ws://0.0.0.0:3000/ws");
-    const formatter = new Intl.DurationFormat("en", { style: "long" });
+    const formatter = new Intl.DurationFormat("en", { style: "narrow" });
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
-      $("#host__name").innerText = `${data.host_name} [${data.local_ip}]`;
+      $("#host__name").innerHTML =
+        `${toTitleCase(data.host_name)} <span class="highlight">${data.local_ip}</span>`;
 
       $("#cpu__usage").innerText = data.cpu_usage.toFixed(2);
       $("#free__memory").innerText = toMB(data.free_memory);
       $("#used__memory").innerText = toMB(data.used_memory);
       $("#total__memory").innerText = toMB(data.total_memory);
+
       $("#uptime").innerText = formatter.format(toDuration(data.uptime * 1000));
-      $("#os").innerText = data.os.toLowerCase();
+
+      $("#os").innerHTML = data.os;
       $("#kernel").innerText = data.kernel;
     };
   </script>
