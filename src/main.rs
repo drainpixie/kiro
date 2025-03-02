@@ -12,7 +12,7 @@ use std::{
     net::{IpAddr, SocketAddr},
     time::Duration,
 };
-use sysinfo::System;
+use sysinfo::{MemoryRefreshKind, System};
 use tokio::{net::UdpSocket, time::sleep};
 use tower_http::services::ServeDir;
 
@@ -39,23 +39,24 @@ async fn handle_socket(mut socket: WebSocket, addr: std::net::SocketAddr) {
     debug!("handling socket from {}", addr);
 
     let mut sys = System::new_all();
-    let host_name = System::host_name().unwrap_or_else(|| "unknown".to_string());
-    let os = System::long_os_version().unwrap_or_else(|| "unknown".to_string());
-    let kernel_version = System::kernel_version().unwrap_or_else(|| "unknown".to_string());
-    let local_ip = match get_local_ip().await {
-        Ok(ip) => ip.to_string(),
-        Err(err) => {
+    let os = System::long_os_version().unwrap_or_default();
+    let kernel_version = System::kernel_version().unwrap_or_default();
+    let host_name = System::host_name().unwrap_or_default();
+    let local_ip = get_local_ip().await.map_or_else(
+        |err| {
             error!("failed to get local IP: {}", err);
             "unknown".to_string()
-        }
-    };
+        },
+        |ip| ip.to_string(),
+    );
 
     debug!("host_name {}", host_name);
     debug!("local_ip {}", local_ip);
 
     loop {
-        sys.refresh_cpu_all();
         sys.refresh_memory();
+        sys.refresh_cpu_usage();
+        sys.refresh_memory_specifics(MemoryRefreshKind::nothing().with_ram());
 
         let update = serde_json::json!({
             "os": os,
@@ -65,8 +66,8 @@ async fn handle_socket(mut socket: WebSocket, addr: std::net::SocketAddr) {
             "uptime": System::uptime(), // loop because it's not "permanent"
             "used_memory": sys.used_memory(),
             "free_memory": sys.free_memory(),
-            "cpu_usage": sys.global_cpu_usage(),
             "total_memory": sys.total_memory(),
+            "cpu_usage": sys.global_cpu_usage(),
         });
 
         debug!("sending update to {}: {}", addr, update);
