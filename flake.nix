@@ -36,21 +36,33 @@
           };
     };
 
-    devShells = forEachSupportedSystem ({pkgs}: {
+    devShells = forEachSupportedSystem ({pkgs}: let
+      buildInputs = with pkgs; [
+        openssl
+        libGL
+        libxkbcommon
+        wayland
+        xorg.libXi
+        xorg.libxcb
+        xorg.libX11
+        xorg.libXcursor
+        xorg.libXrandr
+      ];
+    in {
       default = pkgs.mkShell {
+        inherit buildInputs;
+
         packages = with pkgs; [
-          rustToolchain
-          openssl
-          pkg-config
           cargo-deny
           cargo-edit
           cargo-watch
           rust-analyzer
+          rustToolchain
+          pkg-config
         ];
 
-        env = {
-          RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
-        };
+        env.RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
+        env.LD_LIBRARY_PATH = "${nixpkgs.lib.makeLibraryPath buildInputs}";
       };
     });
   };
