@@ -3,18 +3,22 @@ use axum::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         ConnectInfo,
     },
-    response::{Html, IntoResponse},
+    response::IntoResponse,
     routing::get,
     serve, Router,
 };
+use flexbuffers::Builder;
 use log::{debug, error, info};
 use std::{
     net::{IpAddr, SocketAddr},
     time::Duration,
 };
 use sysinfo::{MemoryRefreshKind, System};
+
+const POLL_TIME: Duration = Duration::from_secs(1);
+const ADDRESS: &str = "127.0.0.1:3000";
+
 use tokio::{net::UdpSocket, time::sleep};
-use tower_http::services::ServeDir;
 
 async fn get_local_ip() -> Result<IpAddr, std::io::Error> {
     debug!("fetching local ip");
@@ -54,38 +58,33 @@ async fn handle_socket(mut socket: WebSocket, addr: std::net::SocketAddr) {
     debug!("local_ip {}", local_ip);
 
     loop {
-        sys.refresh_memory();
         sys.refresh_cpu_usage();
         sys.refresh_memory_specifics(MemoryRefreshKind::nothing().with_ram());
 
-        let update = serde_json::json!({
-            "os": os,
-            "local_ip": local_ip,
-            "host_name": host_name,
-            "kernel": kernel_version,
-            "uptime": System::uptime(), // loop because it's not "permanent"
-            "used_memory": sys.used_memory(),
-            "free_memory": sys.free_memory(),
-            "total_memory": sys.total_memory(),
-            "cpu_usage": sys.global_cpu_usage(),
-        });
-
-        debug!("sending update to {}: {}", addr, update);
-        if socket
-            .send(Message::Text(update.to_string().into()))
-            .await
-            .is_err()
+        let mut builder = Builder::default();
         {
+            let mut map = builder.start_map();
+            map.push("os", os.as_str());
+            map.push("uptime", System::uptime());
+            map.push("local_ip", local_ip.as_str());
+            map.push("host_name", host_name.as_str());
+            map.push("used_memory", sys.used_memory());
+            map.push("free_memory", sys.free_memory());
+            map.push("kernel", kernel_version.as_str());
+            map.push("total_memory", sys.total_memory());
+            map.push("cpu_usage", sys.global_cpu_usage());
+        }
+
+        let data = builder.view().to_vec();
+
+        debug!("sending {:?} bytes update to {}", data.len(), addr);
+        if socket.send(Message::Binary(data.into())).await.is_err() {
             error!("failed to send message to {}", addr);
             break;
         }
 
-        sleep(Duration::from_secs(1)).await;
+        sleep(POLL_TIME).await;
     }
-}
-
-async fn root() -> Html<&'static str> {
-    Html(include_str!("../templates/index.html"))
 }
 
 #[tokio::main]
@@ -93,17 +92,13 @@ async fn main() {
     twink::log::setup_level(log::LevelFilter::Debug);
 
     debug!("starting server");
-    let app = Router::new()
-        .route("/", get(root))
-        .route("/ws", get(ws_handler))
-        .nest_service("/static", ServeDir::new("./static"));
 
-    let addr = "127.0.0.1:3000";
-    let listener = tokio::net::TcpListener::bind(addr)
+    let app = Router::new().route("/", get(ws_handler));
+    let listener = tokio::net::TcpListener::bind(ADDRESS)
         .await
         .expect("failed to bind server");
 
-    info!("server running at {}", addr);
+    info!("server running at {}", ADDRESS);
     serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),

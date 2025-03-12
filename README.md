@@ -1,6 +1,6 @@
 # 📊 kir**o** 整理
 
-a cute system monitor
+a cute, efficient, system monitor
 
 ## 🖥️ dev
 
