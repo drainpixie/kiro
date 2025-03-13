@@ -1,13 +1,11 @@
 use constants::*;
 use eframe::{run_native, NativeOptions};
 use egui::Theme;
-use nodes::Node;
-use render::Kiro;
+use kiro::{Kiro, Node};
 use std::collections::HashSet;
 
 mod constants;
-mod nodes;
-mod render;
+mod kiro;
 
 // TODO: Custom fonts
 // TODO: In-app config
