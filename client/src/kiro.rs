@@ -10,8 +10,6 @@ use rand::Rng;
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, SystemTime};
 
-// TODO: Get rid of Clone
-#[derive(Clone)]
 pub struct Node<'a> {
     pub id: i32,
 
@@ -95,12 +93,7 @@ impl<'a> Kiro<'a> {
 
                         RichText::new(format!("\n{}", node.address))
                             .size(12.0)
-                            .append_to(
-                                &mut layout_job,
-                                style,
-                                FontSelection::Default,
-                                Align::LEFT,
-                            );
+                            .append_to(&mut layout_job, style, FontSelection::Default, Align::LEFT);
 
                         let is_selected = self.selected == Some(node.id);
                         let button = Button::new(layout_job)
@@ -124,12 +117,12 @@ impl<'a> Kiro<'a> {
         });
     }
 
-    pub fn render_ram_history(&mut self, node: &Node, ui: &mut egui::Ui) {
+    pub fn render_ram_history(&self, node: &Node, ui: &mut egui::Ui) {
         let history = self.ram_history.get(&node.id).expect("history not found");
 
         let points: PlotPoints = history
             .iter()
-            .map(|(hours, usage)| [*hours, *usage])
+            .map(|(seconds, usage)| [*seconds, *usage])
             .collect::<Vec<_>>()
             .into();
 
@@ -193,7 +186,8 @@ impl App for Kiro<'_> {
                     if let Some(id) = self.selected {
                         let node = self
                             .nodes
-                            .iter().find(|&node| node.id == id).cloned()
+                            .iter()
+                            .find(|&node| node.id == id)
                             .expect("couldn't find node");
 
                         ui.vertical_centered(|ui| {
@@ -204,7 +198,7 @@ impl App for Kiro<'_> {
                             self.render_ram_history(&node, ui);
                         });
                     } else {
-                        ui.label("Select a node to its data.");
+                        ui.label("Select a node for its data.");
                     }
                 });
             });
