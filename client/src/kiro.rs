@@ -15,6 +15,10 @@ pub struct Node<'a> {
 
     pub hostname: &'a str,
     pub address: &'a str,
+
+    pub os: &'a str,
+    pub uptime: Duration,
+    pub kernel: &'a str,
 }
 
 impl<'a> Node<'a> {
@@ -34,6 +38,11 @@ impl<'a> Node<'a> {
             id,
             hostname,
             address,
+
+            // Mock data:
+            os: "NixOS 24.05",
+            kernel: "6.8.0-48-generic",
+            uptime: Duration::from_secs(3600 * 24 * 3 + 3600 * 5 + 600),
         }
     }
 }
@@ -147,6 +156,43 @@ impl<'a> Kiro<'a> {
             });
     }
 
+    pub fn create_info_column(ui: &mut egui::Ui, title: &str, value: &str) {
+        let mut job = LayoutJob::default();
+        let style = ui.style();
+
+        RichText::new(title).heading().append_to(
+            &mut job,
+            style,
+            FontSelection::Default,
+            Align::LEFT,
+        );
+
+        RichText::new(format!("\n{}", value)).append_to(
+            &mut job,
+            style,
+            FontSelection::Default,
+            Align::LEFT,
+        );
+
+        ui.label(job);
+        ui.add_space(PADDING);
+    }
+
+    pub fn render_node(&self, node: &Node, ui: &mut egui::Ui) {
+        ui.add_space(PADDING);
+        ui.label(RichText::new(node.hostname).heading());
+        ui.add_space(PADDING);
+
+        ui.horizontal(|ui| {
+            Kiro::create_info_column(ui, "OS", node.os);
+            Kiro::create_info_column(ui, "Kernel", node.kernel);
+            Kiro::create_info_column(ui, "Uptime", &format_duration(node.uptime).to_string());
+            Kiro::create_info_column(ui, "Address", node.address);
+        });
+
+        ui.add_space(PADDING);
+    }
+
     pub fn render_menu(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
         TopBottomPanel::top("kiro_top_panel").show(ctx, |ui| {
             ui.add_space(PADDING);
@@ -191,10 +237,7 @@ impl App for Kiro<'_> {
                             .expect("couldn't find node");
 
                         ui.vertical_centered(|ui| {
-                            ui.add_space(PADDING);
-                            ui.label(RichText::new(node.hostname).heading());
-                            ui.add_space(PADDING);
-
+                            self.render_node(&node, ui);
                             self.render_ram_history(&node, ui);
                         });
                     } else {
