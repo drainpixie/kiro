@@ -1,4 +1,5 @@
 use crate::constants::{PADDING, SECONDS_PER_HOUR};
+use crate::websocket::WebSocketManager;
 use eframe::App;
 use egui::{
     menu, text::LayoutJob, Align, Button, CentralPanel, Context, FontSelection, Label, Layout,
@@ -13,12 +14,22 @@ use std::time::{Duration, SystemTime};
 pub struct Node<'a> {
     pub id: i32,
 
-    pub hostname: &'a str,
-    pub address: &'a str,
+    pub uptime: Duration,
 
     pub os: &'a str,
-    pub uptime: Duration,
     pub kernel: &'a str,
+    pub address: &'a str,
+    pub hostname: &'a str,
+}
+
+pub struct Kiro<'a> {
+    pub nodes: &'a Vec<Node<'a>>,
+    pub selected: Option<i32>,
+
+    pub start: SystemTime,
+    pub ram_history: HashMap<i32, Vec<(f64, f64)>>,
+
+    manager: WebSocketManager<'a>,
 }
 
 impl<'a> Node<'a> {
@@ -46,23 +57,24 @@ impl<'a> Node<'a> {
         }
     }
 }
-pub struct Kiro<'a> {
-    nodes: Vec<Node<'a>>,
-    selected: Option<i32>,
-
-    start: SystemTime,
-    ram_history: HashMap<i32, Vec<(f64, f64)>>,
-}
 
 impl<'a> Kiro<'a> {
-    pub fn new(nodes: Vec<Node<'a>>) -> Self {
-        Self {
+    pub fn new(nodes: &'a Vec<Node<'a>>) -> Self {
+        let kiro = Self {
             nodes,
             selected: None,
             start: SystemTime::now(),
             ram_history: HashMap::new(),
+            manager: WebSocketManager::new(),
+        };
+
+        for node in nodes {
+            kiro.manager.connect(node.hostname, node.address);
         }
+
+        kiro
     }
+
     pub fn mock_data(&mut self) {
         let mut rng = rand::rng();
 
@@ -72,7 +84,7 @@ impl<'a> Kiro<'a> {
 
         let elapsed_hours = elapsed.as_secs_f64() / SECONDS_PER_HOUR;
 
-        for node in &self.nodes {
+        for node in self.nodes {
             let history = self.ram_history.entry(node.id).or_default();
             let last_value = history.last().map(|(_, usage)| *usage).unwrap_or(50.0);
             let new_value = (last_value + rng.random_range(-2.0..2.0)).clamp(30.0, 90.0);
@@ -88,7 +100,7 @@ impl<'a> Kiro<'a> {
 
             ui.horizontal(|ui| {
                 ui.vertical(|ui| {
-                    for node in &self.nodes {
+                    for node in self.nodes {
                         let style = ui.style();
 
                         let mut layout_job = LayoutJob::default();
@@ -137,7 +149,7 @@ impl<'a> Kiro<'a> {
 
         let line = Line::new(points).name("RAM Usage (%)");
 
-        let percentage_axis = AxisHints::new_y().label("Usage (%)");
+        let percentage_axis = AxisHints::new_y().label("RAM Usage (%)");
         let custom_time_axis = AxisHints::new_x().label("Time").formatter(Box::new(
             |mark: GridMark, _range: &std::ops::RangeInclusive<f64>| {
                 let seconds = mark.value * SECONDS_PER_HOUR;
@@ -237,8 +249,8 @@ impl App for Kiro<'_> {
                             .expect("couldn't find node");
 
                         ui.vertical_centered(|ui| {
-                            self.render_node(&node, ui);
-                            self.render_ram_history(&node, ui);
+                            self.render_node(node, ui);
+                            self.render_ram_history(node, ui);
                         });
                     } else {
                         ui.label("Select a node for its data.");
