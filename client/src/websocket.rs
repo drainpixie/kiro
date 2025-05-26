@@ -1,5 +1,5 @@
 use futures_util::StreamExt;
-use log::error;
+use log::{error, kv::Error};
 use std::{
     collections::HashMap,
     sync::{mpsc, Arc, Mutex},
@@ -36,7 +36,7 @@ impl<'a> WebSocketManager<'a> {
                         .unwrap_or_else(|_| panic!("failed connecting to {}", url));
 
                     while let Some(message) = stream.next().await {
-                        if let Ok(message) = message {
+                        if let Ok(_message) = message {
                             // TODO: Decode flexbuffer message
                             // error!("breaks thread so...")
                         }
